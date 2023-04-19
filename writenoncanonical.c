@@ -106,8 +106,8 @@ int main(int argc, char** argv)
         if(buf[0]=='\0') STOP=TRUE;
     }
     
-
-
+    sleep(1);
+    tcsetattr(fd,TCSANOW,&oldtio);
     close(fd);
     return 0;
 }
