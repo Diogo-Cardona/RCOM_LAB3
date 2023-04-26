@@ -14,6 +14,63 @@
 
 volatile int STOP=FALSE;
 
+//////////////////////////////////////////////////////////////
+//MAQUINA DE ESTADOS
+typedef enum{
+    Start,
+    FLAG_RCV,
+    A_RCV,
+    C_RCV,
+    BCC_OK,
+    MSTOP
+}Estados;
+ 
+//Variável para a máquina de estados 
+Estados estado = Start;
+ 
+void state_machine(unsigned char msg)
+{
+    unsigned char codigo[] = {0x5c, 0x01, 0x03, (0x01)^(0x03), 0x5c};
+    switch(estado)
+    {
+    case Start:
+        if (msg==codigo[0])
+            estado = FLAG_RCV;
+        break;
+    case FLAG_RCV:
+        if (msg==codigo[0])
+            break;
+        if (msg==codigo[1])
+            estado = A_RCV;
+        else
+            estado = Start;
+        break;
+    case A_RCV:
+        if(msg==codigo[0])
+            estado = FLAG_RCV;
+        break;
+        if(msg==codigo[3])
+            estado = C_RCV;
+        else
+            estado = Start;
+        break;
+    case C_RCV:
+        if(msg==codigo[0])
+            estado = FLAG_RCV;
+        if(msg==codigo[4])
+            estado = BCC_OK;
+        else
+            estado = Start;
+    case BCC_OK:
+        if(msg==codigo[5])
+            estado=MSTOP;
+        else
+            estado = Start;
+    default:
+        break;
+    }
+}
+//////////////////////////////////////////////////////
 int main(int argc, char** argv)
 {
     int fd,c, res;
@@ -70,17 +127,20 @@ int main(int argc, char** argv)
         
     char response[strlen(buf)+1];
     int  i=0;
+    unsigned char msg[1];
     while (STOP==FALSE) {       /* loop for input */
         res = read(fd,buf,255);  /* returns after 5 chars have been input */     
         buf[res]=0;               /* so we can printf... */     
         printf(":%s:%d\n", buf, res);
-        response[i]=buf[0];
+        strcpy(msg, buf);
+        state_machine(msg);
         i++;
-        if (buf[0]=='\0') STOP=TRUE;
+        if (estado==MSTOP) STOP=TRUE;
     }
-    response[i]='\0';
-    res = write(fd, response, strlen(response)+1);
-    printf("%d bytes writen\n", res); 
+
+
+    
+    
 
     /*
     O ciclo WHILE deve ser alterado de modo a respeitar o indicado no guião
