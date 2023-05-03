@@ -14,64 +14,6 @@
 
 volatile int STOP=FALSE;
 
-//////////////////////////////////////////////////////////////
-//MAQUINA DE ESTADOS
-typedef enum{
-    Start,
-    FLAG_RCV,
-    A_RCV,
-    C_RCV,
-    BCC_OK,
-    MSTOP
-}Estados;
- 
-//Variável para a máquina de estados 
-Estados estado = Start;
- 
-void state_machine(char msg)
-{
-    unsigned char codigo[5] = {0x5c, 0x01, 0x03, (0x01)^(0x03), 0x5c};
-    switch(estado)
-    {
-    case Start:
-        if (msg==codigo[0])
-            estado = FLAG_RCV;
-        break;
-    case FLAG_RCV:
-        if (msg==codigo[0])
-            break;
-        if (msg==codigo[1])
-            estado = A_RCV;
-        else
-            estado = Start;
-        break;
-    case A_RCV:
-        if(msg==codigo[0])
-            estado = FLAG_RCV; 
-        if(msg==codigo[2])
-            estado = C_RCV;
-        else
-            estado = Start;
-        break;
-    case C_RCV:
-        if(msg==codigo[0])
-            estado = FLAG_RCV;
-        if(msg==codigo[3])
-            estado = BCC_OK;
-        else
-            estado = Start;
-        break;
-    case BCC_OK:
-        if(msg==codigo[4])
-            estado=MSTOP;
-        else
-            estado = Start;
-        break;
-    default:
-        break;
-    }
-}
-//////////////////////////////////////////////////////
 int main(int argc, char** argv)
 {
     int fd,c, res;
@@ -132,24 +74,17 @@ int main(int argc, char** argv)
  
     char response[strlen(buf)+1];
     int  i=0;
-    unsigned char msg[5]= {0x5c, 0x03, 0x07, (0x03)^(0x07), 0x5c};;
     while (STOP==FALSE) {       /* loop for input */
         res = read(fd,buf,1);  /* returns after 5 chars have been input */     
         buf[res]=0;               /* so we can printf... */     
-        //printf("vcr=0x%02x\n", (unsigned int)buf[0]&0XFF);
-
-        state_machine(buf[0]);
-        
-        if (estado==MSTOP)
-        {
-            res = write(fd,msg,5); 
-            STOP=TRUE;
-        }
+        printf(":%s:%d\n", buf, res);
+        response[i]=buf[0];
+        i++;
+        if (buf[0]=='\0') STOP=TRUE;
     }
-
-
-     
-///////////////FIM DE CODIGO ALTERADO/////////////////  
+    response[i]='\0';
+    res = write(fd, response, strlen(response)+1);
+    printf("%d bytes writen\n", res); 
 
     /*
     O ciclo WHILE deve ser alterado de modo a respeitar o indicado no guião
