@@ -14,66 +14,8 @@
 
 volatile int STOP=FALSE;
 
-typedef enum{
-    Start,
-    FLAG_RCV,
-    A_RCV,
-    C_RCV,
-    BCC_OK,
-    MSTOP
-}Estados;
-
-Estados estado = Start;
-
-void state_machine(unsigned char msg)
-{
-    unsigned char codigo[5] = {0x5c, 0x03, 0x07, (0x03)^(0x07), 0x5c};
-    switch(estado)
-    {
-    case Start:
-        if (msg==codigo[0])
-            estado = FLAG_RCV;
-        break;
-    case FLAG_RCV:
-        if (msg==codigo[0])
-            break;
-        if (msg==codigo[1])
-            estado = A_RCV;
-        else
-            estado = Start;
-        break;
-    case A_RCV:
-        if(msg==codigo[0]){
-            estado = FLAG_RCV;
-        break;
-        }
-        if(msg==codigo[2])
-            estado = C_RCV;
-        else
-            estado = Start;
-        break;
-    case C_RCV:
-        if(msg==codigo[0])
-            estado = FLAG_RCV;
-        if(msg==codigo[3])
-            estado = BCC_OK;
-        else
-            estado = Start;
-        break;
-    case BCC_OK:
-        if(msg==codigo[4])
-            estado=MSTOP;
-        else
-            estado = Start;
-        break;
-    default:
-        break;
-    }
-}
-
 int main(int argc, char** argv)
 {
-
     int fd,c, res;
     struct termios oldtio,newtio;
     char buf[255];
@@ -110,7 +52,7 @@ int main(int argc, char** argv)
     newtio.c_lflag = 0;
 
     newtio.c_cc[VTIME]    = 0;   /* inter-character timer unused */
-    newtio.c_cc[VMIN]     = 1;   /* blocking read until 5 chars received */
+    newtio.c_cc[VMIN]     = 5;   /* blocking read until 5 chars received */
 
 
 
@@ -121,8 +63,6 @@ int main(int argc, char** argv)
 
 
     tcflush(fd, TCIOFLUSH);
-    
-    sleep(1);
 
     if (tcsetattr(fd,TCSANOW,&newtio) == -1) {
         perror("tcsetattr");
@@ -132,36 +72,30 @@ int main(int argc, char** argv)
     printf("New termios structure set\n");
 
 
+
+    for (i = 0; i < 255; i++) {
+        buf[i] = 'a';
+    }
+
     /*testing*/
     buf[25] = '\n';
-    
-    unsigned char msg[5] = {0x5c, 0x01, 0x03, (0x01)^(0x03), 0x5c};
-    res = write(fd,msg,5);
-    
+
+    res = write(fd,buf,255);
     printf("%d bytes written\n", res);
+
 
     /*
     O ciclo FOR e as instruções seguintes devem ser alterados de modo a respeitar
     o indicado no guião
     */
-    
-    sleep(1);
-    
+
+
     if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {
         perror("tcsetattr");
         exit(-1);
     }
-    
-    while(STOP==FALSE){
-        res=read(fd, buf, 1);
-        buf[res]=0;
-        state_machine(buf[0]);
-        //printf("var = 0x%02x\n", (unsigned int)(buf[0]&0xFF));
-        if(estado==MSTOP) STOP=TRUE;
-    }
-    
-    sleep(1);
-    tcsetattr(fd,TCSANOW,&oldtio);
+
+
     close(fd);
     return 0;
 }
