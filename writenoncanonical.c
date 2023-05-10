@@ -5,12 +5,20 @@
 #include <fcntl.h>
 #include <termios.h>
 #include <stdio.h>
+#include <stdlib.h>
+
+//printf("var = 0x%02x\n", (unsigned int)(buf[0]&0xFF));
 
 #define BAUDRATE B38400
 #define MODEMDEVICE "/dev/ttyS1"
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
 #define FALSE 0
 #define TRUE 1
+
+///////////////CODIGO ALTERADO/////////////////  
+
+unsigned char msg[5] = {0x5c, 0x01, 0x03, (0x01)^(0x03), 0x5c}; //msg a enviar
+int flag=1, fd,c, res, tentativas=1;
 
 volatile int STOP=FALSE;
 
@@ -21,9 +29,9 @@ typedef enum{
     C_RCV,
     BCC_OK,
     MSTOP
-}Estados;
+}Estados; //todos os estados necessarios para a máquina de estados
 
-Estados estado = Start;
+Estados estado = Start; //estado inicial da maquina de estados
 
 void state_machine(unsigned char msg)
 {
@@ -71,10 +79,21 @@ void state_machine(unsigned char msg)
     }
 }
 
+void resend()// atende alarme
+{
+    tentativas++;
+    printf("Tentativa numero - %d\n", tentativas);
+    flag=1;
+    res = write(fd,msg,5);
+    printf("%d bytes sent\n", res);
+}
+
+///////////////FIM DE CODIGO ALTERADO/////////////////
+
+
 int main(int argc, char** argv)
 {
 
-    int fd,c, res;
     struct termios oldtio,newtio;
     char buf[255];
     int i, sum = 0, speed = 0;
@@ -112,14 +131,10 @@ int main(int argc, char** argv)
     newtio.c_cc[VTIME]    = 0;   /* inter-character timer unused */
     newtio.c_cc[VMIN]     = 1;   /* blocking read until 5 chars received */
 
-
-
     /*
     VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a
     leitura do(s) próximo(s) caracter(es)
     */
-
-
     tcflush(fd, TCIOFLUSH);
     
     sleep(1);
@@ -131,35 +146,45 @@ int main(int argc, char** argv)
 
     printf("New termios structure set\n");
 
+    ///////////////CODIGO ALTERADO/////////////////  
 
-    /*testing*/
-    buf[25] = '\n';
-    
-    unsigned char msg[5] = {0x5c, 0x01, 0x03, (0x01)^(0x03), 0x5c};
+    (void) signal(SIGALRM, resend);  // instala rotina que atende interrupcao
+  
     res = write(fd,msg,5);
-    
-    printf("%d bytes written\n", res);
+    printf("%d bytes sent\n", res);
 
-    /*
-    O ciclo FOR e as instruções seguintes devem ser alterados de modo a respeitar
-    o indicado no guião
-    */
-    
+
     sleep(1);
-    
     if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {
         perror("tcsetattr");
         exit(-1);
     }
     
-    while(STOP==FALSE){
+    int bytes_received;
+    while(STOP==FALSE ){
         res=read(fd, buf, 1);
+        if (res>=1)
+            bytes_received+=res;
+        
+        if (flag)
+        {
+            alarm(5); //ativa alarme
+            flag=0; 
+        }
         buf[res]=0;
         state_machine(buf[0]);
-        //printf("var = 0x%02x\n", (unsigned int)(buf[0]&0xFF));
-        if(estado==MSTOP) STOP=TRUE;
+        
+        if(tentativas >=3)
+            flag=0;
+        if(estado==MSTOP)
+        {
+            printf("%d bytes received\n", bytes_received);
+            STOP=TRUE;
+        }    
     }
     
+///////////////FIM DE CODIGO ALTERADO/////////////////
+
     sleep(1);
     tcsetattr(fd,TCSANOW,&oldtio);
     close(fd);

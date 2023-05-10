@@ -126,9 +126,7 @@ int main(int argc, char** argv)
 
     printf("New termios structure set\n");
     
-
-
-    ///////////////CODIGO ALTERADO/////////////////  
+///////////////CODIGO ALTERADO/////////////////  
  
     char response[strlen(buf)+1];
     int  i=0;
@@ -136,7 +134,6 @@ int main(int argc, char** argv)
     while (STOP==FALSE) {       /* loop for input */
         res = read(fd,buf,1);  /* returns after 5 chars have been input */     
         buf[res]=0;               /* so we can printf... */     
-        //printf("vcr=0x%02x\n", (unsigned int)buf[0]&0XFF);
 
         state_machine(buf[0]);
         
@@ -151,9 +148,6 @@ int main(int argc, char** argv)
      
 ///////////////FIM DE CODIGO ALTERADO/////////////////  
 
-    /*
-    O ciclo WHILE deve ser alterado de modo a respeitar o indicado no guião
-    */
     sleep(1);
     tcsetattr(fd,TCSANOW,&oldtio);
     close(fd);
