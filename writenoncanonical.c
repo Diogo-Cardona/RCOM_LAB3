@@ -6,6 +6,9 @@
 #include <termios.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <signal.h>
+#include <string.h>
 
 //printf("var = 0x%02x\n", (unsigned int)(buf[0]&0xFF));
 
@@ -82,7 +85,7 @@ void state_machine(unsigned char msg)
 void resend()// atende alarme
 {
     tentativas++;
-    printf("Tentativa numero %d\n", tentativas);
+    printf("Attempt %d\n", tentativas);
     flag=1;
     res = write(fd,msg,5);
     printf("%d bytes sent\n", res);
@@ -130,8 +133,8 @@ int main(int argc, char** argv)
     /* set input mode (non-canonical, no echo,...) */
     newtio.c_lflag = 0;
 
-    newtio.c_cc[VTIME]    = 0;   /* inter-character timer unused */
-    newtio.c_cc[VMIN]     = 1;   /* blocking read until 5 chars received */
+    newtio.c_cc[VTIME]    = 0.1;   /* inter-character timer unused */
+    newtio.c_cc[VMIN]     = 0;   /* blocking read until 5 chars received */
 
     /*
     VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a
@@ -154,13 +157,6 @@ int main(int argc, char** argv)
   
     res = write(fd,msg,5);
     printf("%d bytes sent\n", res);
-
-
-    sleep(1);
-    if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {
-        perror("tcsetattr");
-        exit(-1);
-    }
     
     int bytes_received;
     while(STOP==FALSE ){
