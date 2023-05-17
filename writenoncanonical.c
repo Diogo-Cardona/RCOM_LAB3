@@ -82,11 +82,13 @@ void state_machine(unsigned char msg)
 void resend()// atende alarme
 {
     tentativas++;
-    printf("Tentativa numero - %d\n", tentativas);
+    printf("Tentativa numero %d\n", tentativas);
     flag=1;
     res = write(fd,msg,5);
     printf("%d bytes sent\n", res);
 }
+
+
 
 ///////////////FIM DE CODIGO ALTERADO/////////////////
 
@@ -168,14 +170,16 @@ int main(int argc, char** argv)
         
         if (flag)
         {
-            alarm(5); //ativa alarme
+            alarm(3); //ativa alarme
             flag=0; 
         }
         buf[res]=0;
         state_machine(buf[0]);
         
-        if(tentativas >=3)
+        if(tentativas >=3){
             flag=0;
+            STOP=TRUE;
+        }    
         if(estado==MSTOP)
         {
             printf("%d bytes received\n", bytes_received);
